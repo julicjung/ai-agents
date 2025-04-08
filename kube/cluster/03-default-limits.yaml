@@ -1,0 +1,41 @@
+# LimitRange sets default, minimum, and maximum resource constraints for each type of resource
+# in a namespace. This ensures resource consumption is within defined boundaries.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: ai-workshop-limits
+  namespace: ai-workshop
+spec:
+  limits:
+    # Container Resource Constraints
+    # ----------------------------
+    - type: Container
+      # Default limits: Applied when a container doesn't specify its own resource limits
+      default:
+        cpu: "500m"      # 0.5 CPU cores
+        memory: "512Mi"  # 512 Mebibytes of memory
+      
+      # Default requests: Applied when a container doesn't specify its own resource requests
+      defaultRequest:
+        cpu: "200m"      # 0.2 CPU cores
+        memory: "256Mi"  # 256 Mebibytes of memory
+      
+      # Maximum allowed: No container can request more than these resources
+      max:
+        cpu: "2"         # 2 CPU cores
+        memory: "2Gi"    # 2 Gibibytes of memory
+      
+      # Minimum allowed: No container can request less than these resources
+      min:
+        cpu: "100m"      # 0.1 CPU cores
+        memory: "128Mi"  # 128 Mebibytes of memory
+    
+    # Persistent Volume Claim Constraints
+    # ---------------------------------
+    - type: PersistentVolumeClaim
+      # Maximum storage size that can be requested by a single PVC
+      max:
+        storage: 50Gi    # 50 Gibibytes
+      # Minimum storage size that must be requested by a PVC
+      min:
+        storage: 1Gi     # 1 Gibibyte

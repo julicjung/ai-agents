@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-workshop
+  labels:
+    name: ai-workshop
+    environment: production

@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agentapp
+  namespace: ai-workshop
+  labels:
+    app: agentapp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: agentapp
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: agentapp
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: agentapp-sa
+      containers:
+      - name: agentapp
+        image: agent45dge4.azurecr.io/agent:1
+        ports:
+        - containerPort: 8000
+          name: http
+        envFrom:
+        - configMapRef:
+            name: agentapp-config
+        - secretRef:
+            name: agentapp-secrets
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+          limits:
+            cpu: "1000m"
+            memory: "1Gi"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+            httpHeaders:
+            - name: Authorization
+              value: "Bearer vh7EBWcZq4kP9XmN2sYgT8JH3aRd6MuQ"
+          initialDelaySeconds: 10
+          periodSeconds: 60
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+            httpHeaders:
+            - name: Authorization
+              value: "Bearer vh7EBWcZq4kP9XmN2sYgT8JH3aRd6MuQ"
+          initialDelaySeconds: 10
+          periodSeconds: 60
+      terminationGracePeriodSeconds: 10

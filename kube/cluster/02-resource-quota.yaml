@@ -1,0 +1,54 @@
+# ResourceQuota defines the maximum amount of compute resources and object counts
+# that can be consumed by all containers and objects in a specific namespace.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ai-workshop-quota
+  namespace: ai-workshop
+spec:
+  hard:
+    # Compute Resource Limits
+    # ----------------------
+    # Maximum total CPU cores that can be requested by all pods
+    requests.cpu: "8"
+    # Maximum total memory that can be requested by all pods
+    requests.memory: 16Gi
+    # Absolute maximum CPU cores that can be used by all pods
+    limits.cpu: "16"
+    # Absolute maximum memory that can be used by all pods
+    limits.memory: 32Gi
+    
+    # Storage Resources
+    # ----------------
+    # Maximum total storage that can be claimed by PersistentVolumeClaims
+    requests.storage: 500Gi
+    # Maximum number of PersistentVolumeClaims that can exist
+    persistentvolumeclaims: "20"
+    
+    # Workload Objects
+    # ---------------
+    # Maximum number of pods that can run simultaneously
+    pods: "50"
+    # Maximum number of Services of all types
+    services: "20"
+    # Maximum number of LoadBalancer type Services
+    services.loadbalancers: "2"
+    # Maximum number of NodePort type Services
+    services.nodeports: "5"
+    # Maximum number of ConfigMaps
+    configmaps: "30"
+    # Maximum number of Secrets
+    secrets: "30"
+    
+    # Kubernetes Resource Objects
+    # -------------------------
+    # Maximum number of ReplicationControllers (older workload type)
+    replicationcontrollers: "20"
+    # Maximum number of Deployments (recommended workload type)
+    "apps/deployments": "20"
+    # Maximum number of StatefulSets (for stateful applications)
+    "apps/statefulsets": "10"
+    # Maximum number of one-time Jobs
+    "batch/jobs": "30"
+    # Maximum number of scheduled recurring Jobs
+    "batch/cronjobs": "20"

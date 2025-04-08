@@ -1,0 +1,32 @@
+# Python environment folders
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local development and testing
+.env
+.env.*
+!.env.example
+.coverage
+htmlcov/
+
+# Git and version control
+.git/
+.gitignore
+.gitattributes
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker
+.dockerignore
+Dockerfile*
+docker-compose*
+
+# Project specific
+*.log
+.pytest_cache/
