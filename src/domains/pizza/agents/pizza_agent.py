@@ -12,6 +12,8 @@ from azure.ai.projects.models import ThreadMessage, MessageRole
 from dotenv import load_dotenv
 import json
 
+from config import settings
+
 logger = logging.getLogger(__name__)
 
 class PizzaAgent:
@@ -42,40 +44,31 @@ class PizzaAgent:
     
     def _initialize_agent(self) -> None:
         """
-        Initialize or retrieve the pizza-agent.
-        Either finds an existing agent or creates a new one with pizza-specific instructions.
+        Initialize the pizza-agent.
+        Creates a new agent with pizza-specific instructions.
         
         Raises:
             Exception: If agent initialization fails
         """
         try:
-            # Look for existing pizza-agent in the project
-            all_agents = self.project_client.agents.list_agents().data
-            self.agent = next(
-                (a for a in all_agents if a.name == "pizza-agent"),
-                None
+            logger.info(f"Creating agent with ID: {settings.pizza_agent_id}")
+            # Create new agent with pizza-specific behavior
+            model_name = os.environ.get("MODEL_DEPLOYMENT_NAME", "gpt-4o")
+            instructions = (
+                "You are a helpful assistant which answers questions on pizza dough recipies and methods." 
+                "You politely refuse to talk about any other topic."
             )
             
-            if not self.agent:
-                logger.info("Creating new pizza-agent, agent wasn't found")
-                # Create new agent with pizza-specific behavior
-                model_name = os.environ.get("MODEL_DEPLOYMENT_NAME", "gpt-4o")
-                instructions = (
-                    "You are a helpful assistant which answers questions on pizza dough recipies and methods." 
-                    "You politely refuse to talk about any other topic."
-                )
-                
-                self.agent = self.project_client.agents.create_agent(
-                    model=model_name,
-                    name="pizza-agent",
-                    instructions=instructions
-                )
-                logger.info(f"Created new pizza-agent with ID: {self.agent.id}")
-            else:
-                logger.info("Using existing pizza-agent")
-            
+            self.agent = self.project_client.agents.create_agent(
+                model=model_name,
+                name="Pizza Dough Expert",
+                instructions=instructions,
+                id=settings.pizza_agent_id
+            )
+            logger.info(f"Created agent with ID: {self.agent.id}")
+        
         except Exception as e:
-            logger.error(f"Failed to initialize pizza-agent: {e}")
+            logger.error(f"Failed to initialize agent: {e}")
             raise
     
     async def process_message(self, message: str, thread_id: str | None = None) -> Dict[str, Any]:

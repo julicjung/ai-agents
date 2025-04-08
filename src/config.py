@@ -30,6 +30,12 @@ class Settings(BaseModel):
         description="Current environment mode (development/production)"
     )
     
+    # AI Agent Settings
+    pizza_agent_id: str = Field(
+        "pizza-dough-agent-id",
+        description="ID of the AI agent to use for pizza-related queries"
+    )
+    
     # API Settings
     api_prefix: str = Field("/api", description="API endpoint prefix for all routes")
     
@@ -68,5 +74,6 @@ settings = Settings(
     health_check_token=os.getenv("HEALTH_CHECK_TOKEN", "vh7EBWcZq4kP9XmN2sYgT8JH3aRd6MuQ"),
     backend_type=os.getenv("BACKEND_TYPE", BackendType.SEMANTIC_KERNEL_AGENT),
     enable_telemetry=os.getenv("ENABLE_TELEMETRY", "true").lower() == "true",
-    azure_monitor_connection_string=os.getenv("AZURE_MONITOR_CONNECTION_STRING")
+    azure_monitor_connection_string=os.getenv("AZURE_MONITOR_CONNECTION_STRING"),
+    pizza_agent_id=os.getenv("PIZZA_AGENT_ID", "pizza-dough-agent-id")
 )

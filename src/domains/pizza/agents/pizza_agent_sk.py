@@ -5,10 +5,11 @@ import os
 import logging
 from typing import Optional
 from azure.identity import DefaultAzureCredential
-from azure.ai.projects import AIProjectClient
+from azure.ai.projects.aio import AIProjectClient
 from semantic_kernel.agents import AzureAIAgentThread, AzureAIAgent
 
 from domains.pizza.models.messages import PizzaAgent, PizzaResponse
+from config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -18,45 +19,41 @@ class SemanticKernelPizzaAgent:
     Handles agent initialization, thread management, and message processing.
     """
     
-    def __init__(self) -> None:
-        """Initialize agent with Azure credentials and project client."""
-        # Initialize Azure credentials and project client
-        self.credential = DefaultAzureCredential()
-        self.project_client = AIProjectClient.from_connection_string(
-            credential=self.credential,
+    def __init__(self, project_client: AIProjectClient, agent: AzureAIAgent) -> None:
+        """Initialize with preconfigured client and agent."""
+        self.project_client = project_client
+        self.agent = agent
+
+    @classmethod
+    async def create(cls) -> "SemanticKernelPizzaAgent":
+        """
+        Create and initialize a new SemanticKernelPizzaAgent instance.
+        
+        Returns:
+            SemanticKernelPizzaAgent: Initialized agent instance
+        """
+        credential = DefaultAzureCredential()
+        project_client = AIProjectClient.from_connection_string(
+            credential=credential,
             conn_str=os.environ["PROJECT_CONNECTION_STRING"]
         )
-        self._initialize_agent()
-    
-    def _initialize_agent(self) -> None:
-        """Initialize or retrieve the pizza-agent instance."""
+        
         try:
-            # Look for existing pizza-agent
-            all_agents = self.project_client.agents.list_agents().data
-            self.agent = next(
-                (a for a in all_agents if a.name == "pizza-agent"),
-                None
+            logger.info(f"Initializing agent with ID: {settings.pizza_agent_id}")
+            aif_agent = await project_client.agents.get_agent(
+                agent_id=settings.pizza_agent_id
             )
             
-            if not self.agent:
-                logger.info("Creating new pizza-agent")
-                model_name = os.environ.get("MODEL_DEPLOYMENT_NAME", "gpt-4o")
-                instructions = (
-                    "You are a helpful assistant which answers questions on pizza dough recipes and methods. "
-                    "You politely refuse to talk about any other topic."
-                )
-                
-                self.agent = self.project_client.agents.create_agent(
-                    model=model_name,
-                    name="pizza-agent",
-                    instructions=instructions
-                )
-                logger.info(f"Created new pizza-agent with ID: {self.agent.id}")
-            else:
-                logger.info("Using existing pizza-agent")
-            
+            agent = AzureAIAgent(
+                client=project_client,
+                definition=aif_agent,
+            )
+
+            logger.info(f"Initialized agent with ID: {aif_agent.id}")
+            return cls(project_client=project_client, agent=agent)
+
         except Exception as e:
-            logger.error(f"Failed to initialize pizza-agent: {e}")
+            logger.error(f"Failed to initialize agent: {e}")
             raise
     
     async def process_message(self, message: str, thread_id: Optional[str] = None) -> PizzaResponse:

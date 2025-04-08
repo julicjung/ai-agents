@@ -17,11 +17,26 @@ logger = logging.getLogger(__name__)
 class PizzaService:
     """Service for handling pizza-related operations."""
     
-    def __init__(self) -> None:
-        """Initialize the PizzaService with appropriate backend."""
-        self.agent = self._create_agent()
+    def __init__(self, agent: PizzaAgent) -> None:
+        """Initialize the PizzaService with a pre-created agent."""
+        self.agent = agent
         
-    def _create_agent(self) -> PizzaAgent:
+    @classmethod
+    async def create(cls) -> "PizzaService":
+        """
+        Create and initialize a new PizzaService instance.
+        
+        Returns:
+            PizzaService: A new service instance with the configured agent
+            
+        Raises:
+            DomainError: If the configured backend type is invalid
+        """
+        agent = await cls._create_agent()
+        return cls(agent=agent)
+        
+    @staticmethod
+    async def _create_agent() -> PizzaAgent:
         """
         Create the appropriate agent based on configuration.
         
@@ -34,7 +49,7 @@ class PizzaService:
         match settings.backend_type:
             case BackendType.SEMANTIC_KERNEL_AGENT:
                 logger.info("Initializing with Semantic Kernel Agent backend")
-                return SemanticKernelPizzaAgent()
+                return await SemanticKernelPizzaAgent.create()
             case BackendType.SEMANTIC_KERNEL:
                 logger.info("Initializing with direct Semantic Kernel backend")
                 return PizzaChatSK()

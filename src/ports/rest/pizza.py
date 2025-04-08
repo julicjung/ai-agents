@@ -38,5 +38,5 @@ async def process_pizza_request(request: PizzaRequest) -> PizzaResponse:
         raise ValidationError("Message cannot be empty")
         
     # Process request with service layer
-    service = PizzaService()
+    service = await PizzaService.create()
     return await service.process_request(request)
