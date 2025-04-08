@@ -5,13 +5,12 @@ providing advanced features like conversation thread management and error handli
 """
 import os
 import logging
-from typing import Dict, Any
+from typing import Optional
 from azure.identity import DefaultAzureCredential
-from azure.ai.projects import AIProjectClient
+from azure.ai.projects.aio import AIProjectClient
 from azure.ai.projects.models import ThreadMessage, MessageRole
-from dotenv import load_dotenv
-import json
 
+from domains.pizza.models.messages import PizzaResponse
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -23,55 +22,45 @@ class PizzaAgent:
     message history, and robust error handling.
     """
     
-    def __init__(self) -> None:
+    def __init__(self, project_client: AIProjectClient, agent_definition: any) -> None:
         """
-        Initialize the PizzaAgent with Azure AI project client.
-        Sets up authentication and creates/retrieves the agent instance.
-        """
-        load_dotenv()
+        Initialize the PizzaAgent with provided client and agent definition.
         
-        # Initialize Azure credentials and client for API access
-        self.credential = DefaultAzureCredential()
-        self.project_client = AIProjectClient.from_connection_string(
-            credential=self.credential,
+        Args:
+            project_client: Configured Azure AI project client
+            agent_definition: Pre-fetched agent definition
+        """
+        self.project_client = project_client
+        self.agent = agent_definition
+        
+    @classmethod
+    async def create(cls) -> "PizzaAgent":
+        """
+        Create and initialize a new PizzaAgent instance.
+        
+        Returns:
+            PizzaAgent: Initialized agent instance with configured client
+        """
+        credential = DefaultAzureCredential()
+        project_client = AIProjectClient.from_connection_string(
+            credential=credential,
             conn_str=os.environ["PROJECT_CONNECTION_STRING"]
         )
         
-        # Initialize agent-specific attributes
-        self.agent = None
-        self.thread = None
-        self._initialize_agent()
-    
-    def _initialize_agent(self) -> None:
-        """
-        Initialize the pizza-agent.
-        Creates a new agent with pizza-specific instructions.
-        
-        Raises:
-            Exception: If agent initialization fails
-        """
         try:
-            logger.info(f"Creating agent with ID: {settings.pizza_agent_id}")
-            # Create new agent with pizza-specific behavior
-            model_name = os.environ.get("MODEL_DEPLOYMENT_NAME", "gpt-4o")
-            instructions = (
-                "You are a helpful assistant which answers questions on pizza dough recipies and methods." 
-                "You politely refuse to talk about any other topic."
+            logger.info(f"Retrieving agent with ID: {settings.pizza_agent_id}")
+            agent_definition = await project_client.agents.get_agent(
+                agent_id=settings.pizza_agent_id
             )
+            logger.info(f"Retrieved agent definition with ID: {agent_definition.id}")
             
-            self.agent = self.project_client.agents.create_agent(
-                model=model_name,
-                name="Pizza Dough Expert",
-                instructions=instructions,
-                id=settings.pizza_agent_id
-            )
-            logger.info(f"Created agent with ID: {self.agent.id}")
-        
+            return cls(project_client=project_client, agent_definition=agent_definition)
+            
         except Exception as e:
             logger.error(f"Failed to initialize agent: {e}")
             raise
     
-    async def process_message(self, message: str, thread_id: str | None = None) -> Dict[str, Any]:
+    async def process_message(self, message: str, thread_id: Optional[str] = None) -> PizzaResponse:
         """
         Process a message using the pizza-agent.
         Maintains conversation context through thread management.
@@ -81,45 +70,40 @@ class PizzaAgent:
             thread_id: Optional thread ID for continuing an existing conversation
             
         Returns:
-            Dict[str, Any]: Response containing:
-                - status: "success" or "error"
-                - message: The agent's response text
-                - message_id: Unique ID of the response message
-                - thread_id: Conversation thread identifier
+            PizzaResponse: Structured response containing the agent's reply and metadata
             
         Examples:
             >>> result = await agent.process_message("How do I make pizza dough?")
             >>> print(result)
-            {
-                "status": "success",
-                "message": "To make pizza dough...",
-                "message_id": "msg_123...",
-                "thread_id": "thread_456..."
-            }
+            PizzaResponse(
+                status="success",
+                message="To make pizza dough...",
+                thread_id="thread_456..."
+            )
         """
         try:
             # Handle thread management
             if thread_id:
                 try:
                     # Verify thread exists and is accessible
-                    self.project_client.agents.list_messages(thread_id=thread_id)
+                    await self.project_client.agents.list_messages(thread_id=thread_id)
                     self.thread = type('Thread', (), {'id': thread_id})()
                     logger.info(f"Using existing thread: {thread_id}")
                 except Exception as e:
                     logger.error(f"Thread {thread_id} not found: {e}")
-                    return {
-                        "status": "error",
-                        "message": f"Thread {thread_id} not found",
-                        "thread_id": None
-                    }
+                    return PizzaResponse(
+                        status="error",
+                        message=f"Thread {thread_id} not found",
+                        thread_id=None
+                    )
             else:
                 # Create new conversation thread
-                self.thread = self.project_client.agents.create_thread()
+                self.thread = await self.project_client.agents.create_thread()
                 logger.info(f"Created new thread: {self.thread.id}")
             
             # Add user message to thread
             logger.info(f"Creating new message in thread {self.thread.id}")
-            self.project_client.agents.create_message(
+            await self.project_client.agents.create_message(
                 thread_id=self.thread.id,
                 role="user",
                 content=message
@@ -128,7 +112,7 @@ class PizzaAgent:
             
             # Process the message with the agent
             logger.info(f"Starting agent run with agent_id: {self.agent.id}")
-            run = self.project_client.agents.create_and_process_run(
+            run = await self.project_client.agents.create_and_process_run(
                 thread_id=self.thread.id,
                 agent_id=self.agent.id
             )
@@ -136,7 +120,7 @@ class PizzaAgent:
             
             # Retrieve the agent's response
             logger.info("Retrieving messages from thread")
-            messages = self.project_client.agents.list_messages(
+            messages = await self.project_client.agents.list_messages(
                 thread_id=self.thread.id
             )
             
@@ -145,24 +129,24 @@ class PizzaAgent:
 
             if last_agent_msg:
                 logger.info("Successfully retrieved assistant's response")
-                return {
-                    "status": "success",
-                    "message": last_agent_msg.content[0].text.value,
-                    "message_id": last_agent_msg.id,
-                    "thread_id": self.thread.id
-                }
+                return PizzaResponse(
+                    status="success",
+                    message=last_agent_msg.content[0].text.value,
+                    message_id=last_agent_msg.id,
+                    thread_id=self.thread.id
+                )
             else:
                 logger.warning("No completed assistant messages found")
-                return {
-                    "status": "error",
-                    "message": "No response received from agent",
-                    "thread_id": self.thread.id
-                }
+                return PizzaResponse(
+                    status="error",
+                    message="No response received from agent",
+                    thread_id=self.thread.id
+                )
                 
         except Exception as e:
             logger.error(f"Failed to process message: {e}")
-            return {
-                "status": "error",
-                "message": str(e),
-                "thread_id": getattr(self.thread, 'id', None)
-            }
+            return PizzaResponse(
+                status="error",
+                message=str(e),
+                thread_id=getattr(self.thread, 'id', None)
+            )

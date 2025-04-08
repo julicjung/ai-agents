@@ -55,7 +55,7 @@ class PizzaService:
                 return PizzaChatSK()
             case BackendType.AZURE_AI_AGENT:
                 logger.info("Initializing with Azure AI Agent backend")
-                return AzureAIPizzaAgent()
+                return await AzureAIPizzaAgent.create()
             case _:
                 raise DomainError(
                     detail=f"Invalid backend type: {settings.backend_type}",
