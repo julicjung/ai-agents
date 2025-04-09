@@ -2,6 +2,7 @@
 REST API endpoints for pizza-related operations.
 """
 from fastapi import APIRouter, status, HTTPException
+from opentelemetry import trace
 
 from domains.pizza.models.messages import PizzaRequest, PizzaResponse
 from domains.pizza.services.pizza_service import PizzaService
@@ -9,6 +10,7 @@ from infra.errors import ValidationError, DomainError
 
 # Initialize router with tag for API documentation grouping
 router = APIRouter(tags=["pizza"])
+tracer = trace.get_tracer(__name__)
 
 @router.post("/pizza", response_model=PizzaResponse, status_code=status.HTTP_200_OK)
 async def process_pizza_request(request: PizzaRequest) -> PizzaResponse:
@@ -33,10 +35,25 @@ async def process_pizza_request(request: PizzaRequest) -> PizzaResponse:
             "thread_id": "thread_123..."
         }
     """
-    # Validate request
-    if not request.message or not request.message.strip():
-        raise ValidationError("Message cannot be empty")
+    with tracer.start_as_current_span("process_pizza_request") as span:
+        # Add request context to span
+        span.set_attribute("has_thread_id", request.thread_id is not None)
+        span.set_attribute("request.message_length", len(request.message))
         
-    # Process request with service layer
-    service = await PizzaService.create()
-    return await service.process_request(request)
+        # Validate request
+        if not request.message or not request.message.strip():
+            span.set_attribute("error", True)
+            span.set_attribute("error.type", "ValidationError")
+            raise ValidationError("Message cannot be empty")
+            
+        # Process request with service layer
+        service = await PizzaService.create()
+        response = await service.process_request(request)
+        
+        # Add response context
+        span.set_attribute("response.status", response.status)
+        span.set_attribute("response.message_length", len(response.message))
+        if response.thread_id:
+            span.set_attribute("response.thread_id", response.thread_id)
+            
+        return response

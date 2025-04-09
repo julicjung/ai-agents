@@ -5,6 +5,9 @@ opentelemetry-sdk>=1.20.0
 opentelemetry-instrumentation-fastapi>=0.41b0
 opentelemetry-exporter-otlp>=1.20.0
 azure-monitor-opentelemetry>=1.0.0
+opentelemetry-instrumentation-aiohttp-client>=0.52b1
+opentelemetry-instrumentation-requests>=0.52b1
+opentelemetry-instrumentation-logging>=0.52b1
 azure-ai-projects==1.0.0b7
 azure-ai-inference==1.0.0b7
 azure-identity==1.21.0

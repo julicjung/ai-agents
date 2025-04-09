@@ -26,7 +26,7 @@ class Settings(BaseModel):
     """
     # Environment Settings
     environment: EnvironmentMode = Field(
-        EnvironmentMode.PRODUCTION,  # Changed from DEVELOPMENT to PRODUCTION
+        EnvironmentMode.PRODUCTION,
         description="Current environment mode (development/production)"
     )
     
@@ -41,7 +41,7 @@ class Settings(BaseModel):
     
     # Health Check Settings
     health_check_token: str = Field(
-        "vh7EBWcZq4kP9XmN2sYgT8JH3aRd6MuQ",  # Hardcoded token as requested
+        "vh7EBWcZq4kP9XmN2sYgT8JH3aRd6MuQ",
         description="Token used for authenticating health check requests"
     )
     
@@ -69,7 +69,7 @@ class Settings(BaseModel):
 
 # Create settings instance by parsing environment variables
 settings = Settings(
-    environment=os.getenv("ENVIRONMENT", EnvironmentMode.PRODUCTION),  # Changed default to PRODUCTION
+    environment=os.getenv("ENVIRONMENT", EnvironmentMode.PRODUCTION),
     api_prefix=os.getenv("API_PREFIX", "/api"),
     health_check_token=os.getenv("HEALTH_CHECK_TOKEN", "vh7EBWcZq4kP9XmN2sYgT8JH3aRd6MuQ"),
     backend_type=os.getenv("BACKEND_TYPE", BackendType.SEMANTIC_KERNEL_AGENT),
