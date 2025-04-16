@@ -11,6 +11,7 @@ from domains.pizza.models.messages import PizzaRequest, PizzaResponse, PizzaAgen
 from domains.pizza.agents.pizza_agent_sk import SemanticKernelPizzaAgent
 from domains.pizza.agents.pizza_agent import PizzaAgent as AzureAIPizzaAgent
 from domains.pizza.agents.pizza_chat_sk import PizzaChatSK
+from domains.pizza.agents.group_chat_sk import SemanticKernelGroupChatAgent
 from infra.errors import DomainError
 from config import settings, BackendType
 
@@ -52,6 +53,7 @@ class PizzaService:
         with tracer.start_as_current_span("pizza_service._create_agent") as span:
             span.set_attribute("backend_type", settings.backend_type)
             
+            logger.info(f"Creating agent with backend type: {settings.backend_type}")
             match settings.backend_type:
                 case BackendType.SEMANTIC_KERNEL_AGENT:
                     logger.info("Initializing with Semantic Kernel Agent backend")
@@ -62,6 +64,9 @@ class PizzaService:
                 case BackendType.AZURE_AI_AGENT:
                     logger.info("Initializing with Azure AI Agent backend")
                     return await AzureAIPizzaAgent.create()
+                case BackendType.GROUP_CHAT_SK:
+                    logger.info("Initializing with Semantic Kernel Group Chat backend")
+                    return await SemanticKernelGroupChatAgent.create()
                 case _:
                     raise DomainError(
                         detail=f"Invalid backend type: {settings.backend_type}",

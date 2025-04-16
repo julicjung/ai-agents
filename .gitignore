@@ -21,8 +21,8 @@ htmlcov/
 .pytest_cache/
 
 # Environment variables
-.env
-.env.*
+**/.env
+**/.env.*
 !.env.example
 
 # IDE specific files

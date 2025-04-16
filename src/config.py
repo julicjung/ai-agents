@@ -2,7 +2,10 @@
 Configuration settings for the application.
 Handles loading environment variables and providing settings for the application.
 Uses Pydantic for type-safe configuration management.
+Ensures .env variables are loaded before any config parsing.
 """
+from dotenv import load_dotenv
+load_dotenv()
 import os
 from enum import Enum
 from typing import Optional
@@ -13,6 +16,7 @@ class BackendType(str, Enum):
     AZURE_AI_AGENT = "azure_ai_agent"          # Uses Azure AI Agent Service
     SEMANTIC_KERNEL = "semantic_kernel"         # Uses direct Semantic Kernel integration
     SEMANTIC_KERNEL_AGENT = "semantic_kernel_agent"  # Uses Semantic Kernel with Agent capabilities
+    GROUP_CHAT_SK = "group_chat_sk"  # Uses Semantic Kernel group chat agent
 
 class EnvironmentMode(str, Enum):
     """Enum for different environment modes."""
@@ -36,6 +40,20 @@ class Settings(BaseModel):
         description="ID of the AI agent to use for pizza-related queries"
     )
     
+    # Pizza Dough Agent IDs
+    neapolitan_dough_agent: str = Field(
+        "neapolitan-dough-agent",
+        description="ID of the Neapolitan dough agent for pizza-related queries"
+    )
+    roman_dough_agent: str = Field(
+        "roman-dough-agent",
+        description="ID of the Roman dough agent for pizza-related queries"
+    )
+    dough_simplifier_agent: str = Field(
+        "dough-simplifier-agent",
+        description="ID of the dough simplifier agent for pizza-related queries"
+    )
+    
     # API Settings
     api_prefix: str = Field("/api", description="API endpoint prefix for all routes")
     
@@ -47,7 +65,7 @@ class Settings(BaseModel):
     
     # Backend Selection
     backend_type: BackendType = Field(
-        BackendType.AZURE_AI_AGENT,
+        BackendType.SEMANTIC_KERNEL_AGENT,
         description="Determines which AI backend implementation to use"
     )
     
@@ -61,12 +79,6 @@ class Settings(BaseModel):
         description="Connection string for Azure Monitor telemetry collection"
     )
 
-    class Config:
-        """Pydantic model configuration"""
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-
 # Create settings instance by parsing environment variables
 settings = Settings(
     environment=os.getenv("ENVIRONMENT", EnvironmentMode.PRODUCTION),
@@ -75,5 +87,8 @@ settings = Settings(
     backend_type=os.getenv("BACKEND_TYPE", BackendType.SEMANTIC_KERNEL_AGENT),
     enable_telemetry=os.getenv("ENABLE_TELEMETRY", "true").lower() == "true",
     azure_monitor_connection_string=os.getenv("AZURE_MONITOR_CONNECTION_STRING"),
-    pizza_agent_id=os.getenv("PIZZA_AGENT_ID", "pizza-dough-agent-id")
+    pizza_agent_id=os.getenv("PIZZA_AGENT_ID", "pizza-dough-agent-id"),
+    neapolitan_dough_agent=os.getenv("NEAPOLITAN_DOUGH_AGENT", "neapolitan-dough-agent"),
+    roman_dough_agent=os.getenv("ROMAN_DOUGH_AGENT", "roman-dough-agent"),
+    dough_simplifier_agent=os.getenv("DOUGH_SIMPLIFIER_AGENT", "dough-simplifier-agent")
 )

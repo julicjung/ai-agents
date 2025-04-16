@@ -23,6 +23,7 @@ from opentelemetry import trace
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
+from azure.ai.inference.tracing import AIInferenceInstrumentor 
 from azure.monitor.opentelemetry import configure_azure_monitor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -138,8 +139,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logger.info(settings.azure_monitor_connection_string)
-
 # Setup OpenTelemetry with Azure Monitor if enabled
 if settings.enable_telemetry:
     try:
@@ -151,11 +150,15 @@ if settings.enable_telemetry:
             }),
         )
         FastAPIInstrumentor.instrument_app(app)
+        AIInferenceInstrumentor().instrument()
         LoggingInstrumentor(set_logging_format=True).instrument()
         RequestsInstrumentor().instrument()
         logger.info("OpenTelemetry instrumentation configured successfully")
     except Exception as e:
         logger.error(f"Failed to configure OpenTelemetry: {e}")
+
+# Log core config items
+logger.info(f"Configured backendtype: {settings.backend_type}")
 
 # Include routers
 app.include_router(pizza_router)     # Pizza domain endpoints
