@@ -6,6 +6,7 @@ import os
 from typing import Optional, Protocol
 from azure.ai.projects.aio import AIProjectClient
 from semantic_kernel import Kernel
+from semantic_kernel.functions import FunctionResult
 from semantic_kernel.agents import AzureAIAgentThread, AzureAIAgent
 
 from domains.pizza.models.messages import PizzaResponse
@@ -114,9 +115,9 @@ class SemanticKernelGroupChatAgent:
                 No participant should take more than one turn in a row.
 
                 Choose only from these participants:
-                - {simplifier_agent_name}
-                - {neapolitan_agent_name}
-                - {roman_agent_name}
+                - '{simplifier_agent_name}' only after you selected either '{neapolitan_agent_name}' or '{roman_agent_name}
+                - '{neapolitan_agent_name}' if the question sounds like neapolitan pizza
+                - '{roman_agent_name}' if the question sounds like roman pizza
 
                 Always follow these rules when selecting the next participant:
                 1) After user input, examine the input and make it either {neapolitan_agent_name}'s *or* {roman_agent_name}'s turn.
@@ -127,11 +128,24 @@ class SemanticKernelGroupChatAgent:
                 {{{{$history}}}}
                 """,
             )
+
+            """
+            Parse the result from the selection function for agent selection.
+            Strips whitespace and returns the participant name as a string.
+            Args:
+                result: The raw result string from the selection function.
+            Returns:
+                str: The cleaned participant name.
+            """
+            def parse_selection_result(result: FunctionResult) -> str:
+                return result.value[0].content.strip()
+
             selection_strategy = KernelFunctionSelectionStrategy(
                 function=selection_function,
                 kernel=kernel,
                 agent_variable_name="agents",
                 history_variable_name="history",
+                result_parser=parse_selection_result,
             )
 
             termination_function = KernelFunctionFromPrompt(
@@ -149,7 +163,7 @@ class SemanticKernelGroupChatAgent:
                 kernel=kernel,
                 agent_variable_name="agents",
                 history_variable_name="history",
-                result_parser=lambda result: result.lower() == "yes",
+                result_parser=lambda result: result.value[0].content.lower().strip() == "yes",
             )
 
             chat = AgentGroupChat(
@@ -174,15 +188,17 @@ class SemanticKernelGroupChatAgent:
             PizzaResponse: Agent's response with conversation tracking info
         """
         # ...implementation needed...
-        self.agent_group.add_chat_message(
+        await self.agent_group.add_chat_message(
             message=message
         )
 
         async for response in self.agent_group.invoke():
             logger.info(f"Chat from group: {response}")
 
-        response = self.agent_group.get_chat_messages()[-1]
+        #responses = await self.agent_group.get_chat_messages()
+        response = self.agent_group.history.messages[-1]
         pizza_response = PizzaResponse(
-            message=response.content.content,
+            message=response.content,
             status="success",
         )
+        return pizza_response
