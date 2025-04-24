@@ -32,8 +32,12 @@ class GroupChatAgent(Protocol):
 
 class SemanticKernelGroupChatAgent:
     """
-    Skeleton implementation of a group chat agent using Semantic Kernel.
-    Handles agent initialization, thread management, and message processing for group chat.
+    Implementation of an experimental group chat.
+
+    It involves routing to a specific agent based on user input analysis.
+    The turn taking is based on a rule set over the chat history and implemented by an LLM call.
+
+    There are several simplification options across this class - however, the purpose is to show the concept of a group chat agent.
     """
     def __init__(self, project_client: AIProjectClient, agent_group: AgentGroupChat) -> None:
         """
@@ -120,9 +124,9 @@ class SemanticKernelGroupChatAgent:
                 - '{roman_agent_name}' if the question sounds like roman pizza
 
                 Always follow these rules when selecting the next participant:
-                1) After user input, examine the input and make it either {neapolitan_agent_name}'s *or* {roman_agent_name}'s turn.
+                1) With only one message of role user in the history below, examine the user input and select either {neapolitan_agent_name}'s *or* {roman_agent_name}'s turn.
                 2) After either replies, it is always {simplifier_agent_name}'s turn.
-                3) After {simplifier_agent_name} provides feedback, it is again the turn of the agent selected in 1) to improve his answer.
+                3) If the last message in the chat history if from role = assistant and name = {simplifier_agent_name} you must again choose the same agent which responded initially. Examine messages with role = assistant and *never* mix selection between {neapolitan_agent_name} or {roman_agent_name}.
 
                 History:
                 {{{{$history}}}}
@@ -151,7 +155,8 @@ class SemanticKernelGroupChatAgent:
             termination_function = KernelFunctionFromPrompt(
                 function_name="termination",
                 prompt="""
-                Determine if {simplifier_agent_name} has deemed the response suitable. If so, respond with a single word: yes
+                Check if '{simplifier_agent_name}' has added the last message and if its only response is 'yes'. If true, also respond with 'yes'
+                If '{simplifier_agent_name}' has  added the last message and gave instructions to either '{neapolitan_agent_name}' or '{roman_agent_name}', respond with 'no'.
 
                 History:
                 {{$history}}
@@ -163,6 +168,7 @@ class SemanticKernelGroupChatAgent:
                 kernel=kernel,
                 agent_variable_name="agents",
                 history_variable_name="history",
+                agents=[simplifier_agent],
                 result_parser=lambda result: result.value[0].content.lower().strip() == "yes",
             )
 
@@ -195,8 +201,9 @@ class SemanticKernelGroupChatAgent:
         async for response in self.agent_group.invoke():
             logger.info(f"Chat from group: {response}")
 
-        #responses = await self.agent_group.get_chat_messages()
-        response = self.agent_group.history.messages[-1]
+        # As the last message [-1] will be a yes or no of simplifier agent, we take the second to last [-2] message as the response
+        # TODO: This may be improved by properly parsing the chat history
+        response = self.agent_group.history.messages[-2]
         pizza_response = PizzaResponse(
             message=response.content,
             status="success",
